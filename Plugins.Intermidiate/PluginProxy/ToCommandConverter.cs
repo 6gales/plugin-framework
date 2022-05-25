@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using Newtonsoft.Json;
 
 namespace Plugins.Intermediate.PluginProxy
 {
@@ -7,17 +8,8 @@ namespace Plugins.Intermediate.PluginProxy
         public static T ToCommand<T>(this IDictionary<string, object> source)
             where T : class, new()
         {
-            var someObject = new T();
-            var someObjectType = someObject.GetType();
-
-            foreach (var (name, value) in source)
-            {
-                someObjectType
-                    .GetProperty(name)
-                    ?.SetValue(someObject, value, null);
-            }
-
-            return someObject;
+            var json = JsonConvert.SerializeObject(source);
+            return JsonConvert.DeserializeObject<T>(json);
         }
     }
 }

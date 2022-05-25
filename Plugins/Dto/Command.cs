@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace Plugins.Api
+namespace Plugins.Api.Dto
 {
     public class Command
     {

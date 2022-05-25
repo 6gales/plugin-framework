@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using Plugins.Intermediate;
+using Plugins.Api.Dto;
+using Plugins.Api.Services;
 
 namespace Plugins.Api.Controllers
 {
@@ -15,31 +15,30 @@ namespace Plugins.Api.Controllers
     public class ImageProcessingController : ControllerBase
     {
         private readonly ILogger<ImageProcessingController> _logger;
-        private readonly IPluginProvider _pluginProvider;
-        private readonly Dictionary<Guid, Bitmap> _savedImages = new Dictionary<Guid, Bitmap>();
+        private readonly ImageProcessingService _imageProcessingService;
 
-        public ImageProcessingController(ILogger<ImageProcessingController> logger, IPluginProvider pluginProvider)
+        public ImageProcessingController(ILogger<ImageProcessingController> logger, ImageProcessingService imageProcessingService)
         {
             _logger = logger;
-            _pluginProvider = pluginProvider;
+            _imageProcessingService = imageProcessingService;
         }
 
         [HttpPost("image")]
-        public IActionResult PostImageNews([FromForm(Name = "body")] IFormFile file)
+        [Consumes("multipart/form-data")]
+        public IActionResult PostImage([FromForm] FileDto fileDto)
         {
             try
             {
+                var file = fileDto.File;
+
                 if (file == null || file.Length == 0)
                 {
-                    return BadRequest("Please send a photo");
+                    return BadRequest("please send a photo");
                 }
-
-                var id = Guid.NewGuid();
-                using (var stream = file.OpenReadStream())
-                {
-                    var image = new Bitmap(stream);
-                    _savedImages[id] = image;
-                }
+                
+                using var stream = file.OpenReadStream();
+                var image = new Bitmap(stream);
+                var id = _imageProcessingService.Save(image);
 
                 return Ok(id);
             }
@@ -50,16 +49,11 @@ namespace Plugins.Api.Controllers
         }
 
         [HttpPost("process/{id}")]
-        public IActionResult ProcessImage([FromQuery] Guid id, [FromBody] IReadOnlyList<Command> commands)
+        public IActionResult ProcessImage(Guid id, [FromBody] IReadOnlyList<Command> commands)
         {
-            if (!_savedImages.TryGetValue(id, out var image))
+            if (!_imageProcessingService.TryProcessImage(id, commands, out var image))
             {
                 return BadRequest("image was not loaded");
-            }
-
-            foreach (var command in commands)
-            {
-                image = _pluginProvider.Process(image, command.Name, command.Parameters);
             }
 
             var outputStream = new MemoryStream();
@@ -71,7 +65,7 @@ namespace Plugins.Api.Controllers
         [HttpGet("commands")]
         public IEnumerable<string> Get()
         {
-            return _pluginProvider.Commands;
+            return _imageProcessingService.Commands;
         }
     }
 }

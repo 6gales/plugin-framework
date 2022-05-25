@@ -9,7 +9,7 @@ namespace Plugins.Logic.Plugins
 
         public static Bitmap Process(Bitmap image, ResizeCommand command)
         {
-            return image;
+            return new Bitmap(image, new Size(command.Width, command.Height));
         }
     }
 }
